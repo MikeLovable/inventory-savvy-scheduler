@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { PERIODS } from '../shared/types';
 import { OrderScheduleArray } from '../shared/types';
 import { getAlgorithmByName } from '../shared/algorithms';
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 
 interface ManualOrderScheduleTableProps {
   orderSchedules: OrderScheduleArray;
@@ -37,27 +37,61 @@ const getWeeks = () => {
 };
 
 // Function to adjust order value according to MOQ and PkQty rules
-const adjustOrderValue = (value: number, MOQ: number, PkQty: number): { value: number, adjusted: boolean } => {
-  // Enforce minimum order quantity (MOQ)
+const adjustOrderValue = (value: number, MOQ: number, PkQty: number, direction: 'up' | 'down' | 'neutral'): { value: number, adjusted: boolean, message?: string } => {
   let adjustedValue = value;
   let wasAdjusted = false;
+  let message;
   
-  if (value > 0 && value < MOQ) {
-    adjustedValue = MOQ;
+  // If the value is 0, we don't need to apply any rules
+  if (value === 0) {
+    return { value: 0, adjusted: false };
+  }
+  
+  // If going down and value is less than MOQ, set to 0 or MOQ
+  if (direction === 'down' && value < MOQ) {
+    adjustedValue = 0;
     wasAdjusted = true;
+    message = `Order reduced to 0 (below minimum order quantity of ${MOQ})`;
+    return { value: adjustedValue, adjusted: wasAdjusted, message };
+  }
+  
+  // Enforce minimum order quantity (MOQ)
+  if (value > 0 && value < MOQ) {
+    if (direction === 'up' || direction === 'neutral') {
+      adjustedValue = MOQ;
+      wasAdjusted = true;
+      message = `Order adjusted to minimum order quantity (MOQ): ${MOQ}`;
+    }
   }
   
   // Enforce package quantity (PkQty) - order must be a multiple of package quantity
   if (value > 0 && PkQty > 1) {
     const remainder = adjustedValue % PkQty;
     if (remainder !== 0) {
-      // Round up to next multiple of PkQty
-      adjustedValue = adjustedValue + (PkQty - remainder);
-      wasAdjusted = true;
+      // Adjust based on direction
+      if (direction === 'up' || direction === 'neutral') {
+        // Round up to next multiple of PkQty
+        adjustedValue = adjustedValue + (PkQty - remainder);
+        wasAdjusted = true;
+        message = `Order adjusted up to be a multiple of package quantity (PkQty): ${PkQty}`;
+      } else if (direction === 'down') {
+        // Round down to previous multiple of PkQty
+        adjustedValue = adjustedValue - remainder;
+        
+        // If after rounding down, the value is now less than MOQ, set to 0
+        if (adjustedValue < MOQ && adjustedValue > 0) {
+          adjustedValue = 0;
+          message = `Order reduced to 0 (below minimum order quantity of ${MOQ})`;
+        } else {
+          message = `Order adjusted down to be a multiple of package quantity (PkQty): ${PkQty}`;
+        }
+        
+        wasAdjusted = true;
+      }
     }
   }
   
-  return { value: adjustedValue, adjusted: wasAdjusted };
+  return { value: adjustedValue, adjusted: wasAdjusted, message };
 };
 
 export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> = ({ 
@@ -66,6 +100,7 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
 }) => {
   const weeks = getWeeks();
   const [hoveredColumn, setHoveredColumn] = useState<number | null>(null);
+  const [previousValue, setPreviousValue] = useState<number>(0);
   
   // Handle changing an order value
   const handleOrderChange = (scheduleIndex: number, weekIndex: number, value: string) => {
@@ -73,23 +108,26 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
     let numValue = parseInt(value, 10);
     
     // If it's not a number, return
-    if (isNaN(numValue) || numValue < 0) {
+    if (isNaN(numValue)) {
       numValue = 0;
     }
     
     // Get the schedule
     const schedule = orderSchedules[scheduleIndex];
     
-    // Adjust value according to MOQ and PkQty rules
-    const { value: adjustedValue, adjusted } = adjustOrderValue(numValue, schedule.MOQ, schedule.PkQty);
+    // Determine direction of change
+    const currentValue = schedule.Ord[weekIndex];
+    const direction = numValue > currentValue ? 'up' : numValue < currentValue ? 'down' : 'neutral';
     
-    // Show toast if value was adjusted
-    if (adjusted && numValue > 0) {
-      if (numValue < schedule.MOQ) {
-        toast.info(`Order adjusted to minimum order quantity (MOQ): ${schedule.MOQ}`);
-      } else {
-        toast.info(`Order adjusted to be a multiple of package quantity (PkQty): ${schedule.PkQty}`);
-      }
+    // Adjust value according to MOQ and PkQty rules
+    const { value: adjustedValue, adjusted, message } = adjustOrderValue(numValue, schedule.MOQ, schedule.PkQty, direction);
+    
+    // Show toast if value was adjusted and there's a message
+    if (adjusted && message) {
+      toast({
+        title: "Order Quantity Adjusted",
+        description: message,
+      });
     }
     
     // Create a copy of the schedule
@@ -233,6 +271,7 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
                       min="0"
                       value={schedule.Ord[week]} 
                       onChange={(e) => handleOrderChange(scheduleIndex, week, e.target.value)}
+                      onFocus={() => setPreviousValue(schedule.Ord[week])}
                       className="border-0 h-8 text-center"
                     />
                   </TableCell>

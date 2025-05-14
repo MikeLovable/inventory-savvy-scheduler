@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 import { GetProductionScenarios, getDataSourceByName } from '../shared/dataSources';
 import { getAlgorithmByName } from '../shared/algorithms';
 import { ProductionScenarioTable } from './ProductionScenarioTable';
@@ -67,14 +66,21 @@ const ManualTab: React.FC<ManualTabProps> = ({
       const endTime = performance.now();
       const elapsed = (endTime - startTime).toFixed(2);
       
-      toast.success(`Successfully retrieved ${scenarios.length} local scenarios in ${elapsed}ms`);
+      toast({
+        title: "Success",
+        description: `Successfully retrieved ${scenarios.length} local scenarios in ${elapsed}ms`,
+      });
       
       // Update the stored data source
       const dataSource: DataSource = getDataSourceByName(selectedDataSource);
       dataSource.ProductionScenarioArray = scenarios;
     } catch (error) {
       console.error('Error getting local scenarios:', error);
-      toast.error(`Error getting local scenarios: ${error instanceof Error ? error.message : String(error)}`);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Error getting local scenarios: ${error instanceof Error ? error.message : String(error)}`,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -92,14 +98,21 @@ const ManualTab: React.FC<ManualTabProps> = ({
       const endTime = performance.now();
       const elapsed = (endTime - startTime).toFixed(2);
       
-      toast.success(`Successfully retrieved ${scenarios.length} API scenarios in ${elapsed}ms`);
+      toast({
+        title: "Success",
+        description: `Successfully retrieved ${scenarios.length} API scenarios in ${elapsed}ms`,
+      });
       
       // Update the stored data source
       const dataSource: DataSource = getDataSourceByName(selectedDataSource);
       dataSource.ProductionScenarioArray = scenarios;
     } catch (error) {
       console.error('Error getting API scenarios:', error);
-      toast.error(`Error getting API scenarios: ${error instanceof Error ? error.message : String(error)}`);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Error getting API scenarios: ${error instanceof Error ? error.message : String(error)}`,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -117,7 +130,11 @@ const ManualTab: React.FC<ManualTabProps> = ({
       const selectedScenarios = productionScenarios.filter(scenario => scenario.Sel);
       
       if (selectedScenarios.length === 0) {
-        toast.warning('No scenarios selected. Please select at least one scenario.');
+        toast({
+          variant: "warning",
+          title: "Warning",
+          description: "No scenarios selected. Please select at least one scenario.",
+        });
         return;
       }
       
@@ -128,10 +145,17 @@ const ManualTab: React.FC<ManualTabProps> = ({
       const endTime = performance.now();
       const elapsed = (endTime - startTime).toFixed(2);
       
-      toast.success(`Successfully calculated ${schedules.length} local order schedules in ${elapsed}ms`);
+      toast({
+        title: "Success",
+        description: `Successfully calculated ${schedules.length} local order schedules in ${elapsed}ms`,
+      });
     } catch (error) {
       console.error('Error calculating local order recommendations:', error);
-      toast.error(`Error calculating local order recommendations: ${error instanceof Error ? error.message : String(error)}`);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Error calculating local order recommendations: ${error instanceof Error ? error.message : String(error)}`,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -146,7 +170,11 @@ const ManualTab: React.FC<ManualTabProps> = ({
       const selectedScenarios = productionScenarios.filter(scenario => scenario.Sel);
       
       if (selectedScenarios.length === 0) {
-        toast.warning('No scenarios selected. Please select at least one scenario.');
+        toast({
+          variant: "warning",
+          title: "Warning",
+          description: "No scenarios selected. Please select at least one scenario.",
+        });
         return;
       }
       
@@ -157,10 +185,17 @@ const ManualTab: React.FC<ManualTabProps> = ({
       const endTime = performance.now();
       const elapsed = (endTime - startTime).toFixed(2);
       
-      toast.success(`Successfully calculated ${schedules.length} API order schedules in ${elapsed}ms`);
+      toast({
+        title: "Success",
+        description: `Successfully calculated ${schedules.length} API order schedules in ${elapsed}ms`,
+      });
     } catch (error) {
       console.error('Error calculating API order recommendations:', error);
-      toast.error(`Error calculating API order recommendations: ${error instanceof Error ? error.message : String(error)}`);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Error calculating API order recommendations: ${error instanceof Error ? error.message : String(error)}`,
+      });
     } finally {
       setIsLoading(false);
     }
