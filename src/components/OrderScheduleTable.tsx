@@ -37,7 +37,7 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
   
   return (
     <div className="overflow-auto">
-      <Table className="border-collapse">
+      <Table className="border-collapse [&_tr:nth-child(even)]:bg-gray-50">
         <TableHeader>
           <TableRow>
             <TableHead className="border border-gray-300">MPN</TableHead>
@@ -46,8 +46,11 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
             <TableHead className="border border-gray-300">Dir</TableHead>
             <TableHead className="border border-gray-300">KPI</TableHead>
             {weeks.map(week => (
-              <TableHead key={week} className="border border-gray-300 text-center">
-                {week}
+              <TableHead 
+                key={week} 
+                className="border border-gray-300 text-center hover:bg-gray-100"
+              >
+                Week {week}
               </TableHead>
             ))}
           </TableRow>
@@ -56,7 +59,7 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
           {orderSchedules.map((schedule, scheduleIndex) => (
             <React.Fragment key={scheduleIndex}>
               {/* Input row group */}
-              <TableRow>
+              <TableRow className="hover:bg-gray-100">
                 <TableCell rowSpan={6} className="border border-gray-300 align-middle">
                   {schedule.MPN}
                 </TableCell>
@@ -75,64 +78,81 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
                 </TableCell>
                 <TableCell className="border border-gray-300">Rqt</TableCell>
                 {weeks.map(week => (
-                  <TableCell key={week} className="border border-gray-300 text-center">
+                  <TableCell 
+                    key={week} 
+                    className="border border-gray-300 text-center hover:bg-gray-100"
+                  >
                     {schedule.Rqt[week]}
                   </TableCell>
                 ))}
               </TableRow>
-              <TableRow>
+              <TableRow className="hover:bg-gray-100">
                 <TableCell className="border border-gray-300">Rec</TableCell>
                 {weeks.map(week => (
-                  <TableCell key={week} className="border border-gray-300 text-center">
+                  <TableCell 
+                    key={week} 
+                    className="border border-gray-300 text-center hover:bg-gray-100"
+                  >
                     {schedule.InRec[week]}
                   </TableCell>
                 ))}
               </TableRow>
-              <TableRow>
+              <TableRow className="hover:bg-gray-100">
                 <TableCell className="border border-gray-300">Inv</TableCell>
                 {weeks.map(week => (
-                  <TableCell key={week} className="border border-gray-300 text-center">
+                  <TableCell 
+                    key={week} 
+                    className="border border-gray-300 text-center hover:bg-gray-100"
+                  >
                     {week === 0 ? schedule.Inv[0] : 'N/A'}
                   </TableCell>
                 ))}
               </TableRow>
               
               {/* Output row group */}
-              <TableRow>
-                <TableCell rowSpan={3} className="border border-gray-300 align-middle">
+              <TableRow className="hover:bg-gray-100">
+                <TableCell rowSpan={4} className="border border-gray-300 align-middle">
                   Out
                 </TableCell>
                 <TableCell className="border border-gray-300">Rqt</TableCell>
                 {weeks.map(week => (
-                  <TableCell key={week} className="border border-gray-300 text-center">
+                  <TableCell 
+                    key={week} 
+                    className="border border-gray-300 text-center hover:bg-gray-100"
+                  >
                     {schedule.Rqt[week]}
                   </TableCell>
                 ))}
               </TableRow>
-              <TableRow>
+              <TableRow className="hover:bg-gray-100">
                 <TableCell className="border border-gray-300">Ord</TableCell>
                 {weeks.map(week => (
-                  <TableCell key={week} className="border border-gray-300 text-center">
+                  <TableCell 
+                    key={week} 
+                    className="border border-gray-300 text-center hover:bg-gray-100"
+                  >
                     {schedule.Ord[week]}
                   </TableCell>
                 ))}
               </TableRow>
-              <TableRow>
+              <TableRow className="hover:bg-gray-100">
                 <TableCell className="border border-gray-300">Rec</TableCell>
                 {weeks.map(week => (
-                  <TableCell key={week} className="border border-gray-300 text-center">
+                  <TableCell 
+                    key={week} 
+                    className="border border-gray-300 text-center hover:bg-gray-100"
+                  >
                     {schedule.Rec[week]}
                   </TableCell>
                 ))}
               </TableRow>
-              <TableRow>
-                <TableCell colSpan={5} className="border border-gray-300">
-                  Inv
-                </TableCell>
+              <TableRow className="hover:bg-gray-100">
+                <TableCell className="border border-gray-300">Inv</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
-                    className={`border border-gray-300 text-center ${getInventoryClass(schedule, week)}`}
+                    className="border border-gray-300 text-center hover:bg-gray-100 
+                    ${getInventoryClass(schedule, week)}"
                   >
                     {schedule.Inv[week]}
                   </TableCell>

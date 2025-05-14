@@ -111,3 +111,32 @@ export function setSAMPLES(value: number): void {
   
   console.log(`SAMPLES set to ${SAMPLES}`);
 }
+
+/**
+ * Generate a random integer between min and max (inclusive)
+ */
+export function getRandomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Generate random requirements array of specified length
+ */
+export function generateRandomRequirements(length: number): number[] {
+  const requirements = [];
+  for (let i = 0; i < length; i++) {
+    requirements.push(getRandomInt(0, 400));
+  }
+  return requirements;
+}
+
+/**
+ * Generate a random receiving array of specified length
+ */
+export function generateRandomReceiving(length: number): number[] {
+  const receiving = [];
+  for (let i = 0; i < length; i++) {
+    receiving.push(getRandomInt(0, 100));
+  }
+  return receiving;
+}
