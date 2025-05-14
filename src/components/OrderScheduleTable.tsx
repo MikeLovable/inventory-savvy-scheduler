@@ -41,19 +41,19 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
   };
   
   return (
-    <div className="overflow-auto">
+    <div className="overflow-auto rounded-md shadow-sm bg-gradient-to-r from-blue-50 to-indigo-50 p-3">
       <Table className="border-collapse [&_tr:hover]:bg-blue-50">
         <TableHeader>
           <TableRow>
-            <TableHead className="border border-gray-300 bg-blue-100">MPN</TableHead>
-            <TableHead className="border border-gray-300 bg-blue-100">MPNAttrs</TableHead>
-            <TableHead className="border border-gray-300 bg-blue-100">Notes</TableHead>
-            <TableHead className="border border-gray-300 bg-blue-100">Dir</TableHead>
-            <TableHead className="border border-gray-300 bg-blue-100">KPI</TableHead>
+            <TableHead className="border border-gray-300 bg-blue-100 font-semibold">MPN</TableHead>
+            <TableHead className="border border-gray-300 bg-blue-100 font-semibold">MPNAttrs</TableHead>
+            <TableHead className="border border-gray-300 bg-blue-100 font-semibold">Notes</TableHead>
+            <TableHead className="border border-gray-300 bg-blue-100 font-semibold">Dir</TableHead>
+            <TableHead className="border border-gray-300 bg-blue-100 font-semibold">KPI</TableHead>
             {weeks.map(week => (
               <TableHead 
                 key={week} 
-                className={`border border-gray-300 text-center bg-blue-100 ${hoveredColumn === week ? 'bg-blue-200' : ''}`}
+                className={`border border-gray-300 text-center bg-blue-100 ${hoveredColumn === week ? 'bg-blue-200' : ''} font-semibold`}
                 onMouseEnter={() => handleColumnHover(week)}
                 onMouseLeave={() => handleColumnHover(null)}
               >
@@ -67,23 +67,23 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
             <React.Fragment key={scheduleIndex}>
               {/* Input row group */}
               <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <TableCell rowSpan={6} className="border border-gray-300 align-middle">
+                <TableCell rowSpan={7} className="border border-gray-300 align-middle">
                   {schedule.MPN}
                 </TableCell>
-                <TableCell rowSpan={6} className="border border-gray-300 align-middle text-xs">
+                <TableCell rowSpan={7} className="border border-gray-300 align-middle text-xs">
                   LdTm[{schedule.LdTm}]<br />
                   MOQ[{schedule.MOQ}]<br />
                   PkQty[{schedule.PkQty}]<br />
                   InvTgt[{schedule.InvTgt}]<br />
                   SStok[{schedule.SStok}]
                 </TableCell>
-                <TableCell rowSpan={6} className="border border-gray-300 align-middle">
+                <TableCell rowSpan={7} className="border border-gray-300 align-middle">
                   {schedule.Notes}
                 </TableCell>
-                <TableCell rowSpan={3} className="border border-gray-300 align-middle bg-indigo-50">
+                <TableCell rowSpan={3} className="border border-gray-300 align-middle bg-indigo-50 font-medium">
                   In
                 </TableCell>
-                <TableCell className="border border-gray-300 bg-indigo-50">Rqt</TableCell>
+                <TableCell className="border border-gray-300 bg-indigo-50 font-medium">Rqt</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
@@ -96,7 +96,7 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
                 ))}
               </TableRow>
               <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <TableCell className="border border-gray-300 bg-indigo-50">Rec</TableCell>
+                <TableCell className="border border-gray-300 bg-indigo-50 font-medium">Rec</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
@@ -109,7 +109,7 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
                 ))}
               </TableRow>
               <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <TableCell className="border border-gray-300 bg-indigo-50">Inv</TableCell>
+                <TableCell className="border border-gray-300 bg-indigo-50 font-medium">Inv</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
@@ -124,10 +124,10 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
               
               {/* Output row group */}
               <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <TableCell rowSpan={3} className="border border-gray-300 align-middle bg-teal-50">
+                <TableCell rowSpan={4} className="border border-gray-300 align-middle bg-teal-50 font-medium">
                   Out
                 </TableCell>
-                <TableCell className="border border-gray-300 bg-teal-50">Rqt</TableCell>
+                <TableCell className="border border-gray-300 bg-teal-50 font-medium">Rqt</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
@@ -140,7 +140,7 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
                 ))}
               </TableRow>
               <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <TableCell className="border border-gray-300 bg-teal-50">Ord</TableCell>
+                <TableCell className="border border-gray-300 bg-teal-50 font-medium">Ord</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
@@ -153,7 +153,7 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
                 ))}
               </TableRow>
               <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <TableCell className="border border-gray-300 bg-teal-50">Rec</TableCell>
+                <TableCell className="border border-gray-300 bg-teal-50 font-medium">Rec</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
@@ -166,7 +166,7 @@ export const OrderScheduleTable: React.FC<OrderScheduleTableProps> = ({ orderSch
                 ))}
               </TableRow>
               <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <TableCell className="border border-gray-300 bg-teal-50">Inv</TableCell>
+                <TableCell className="border border-gray-300 bg-teal-50 font-medium">Inv</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
