@@ -1,0 +1,13 @@
+
+Build an AlgorithmicOrderScheduler web app with React frontend and AWS CDK backend. It calculates optimal order schedules for manufacturing using different algorithms. 
+
+Create:
+- Shared code for data types and algorithms
+- CDK backend with API Gateway and Lambda
+- React UI with four tabs: Data/Config, Batch, Manual, ManualOutput
+- Five ordering algorithms: Flat20, NaiveReplenish, SmartReplenish, AIDesigned, LookAheadLdTm
+- Data-dense tables showing order schedules with color-coding for inventory alerts
+
+The app manages ProductionScenarios (manufacturing requirements) and generates OrderSchedules (recommended orders) using selectable algorithms. Users can manually adjust orders and see the impact on inventory. 
+
+Include CloudFront distribution for hosting the React app and ensure all state persists between tab switches.

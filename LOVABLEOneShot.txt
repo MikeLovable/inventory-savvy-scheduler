@@ -1,0 +1,64 @@
+
+Create a two-tier web application called AlgorithmicOrderScheduler with React frontend and AWS CDK v2 backend. The application helps manufacturers optimize ordering through various algorithms.
+
+Requirements:
+
+1. Architecture:
+   - Frontend: React with Typescript, Tailwind CSS, shadcn components
+   - Backend: AWS CDK v2 with API Gateway, Lambda, S3, CloudFront
+   - Shared code: Types, algorithms and data generators used by both frontend and backend
+
+2. Global constants:
+   - PERIODS: Number of time periods (weeks), default 12, min 1, max 20
+   - SAMPLES: Number of scenario samples, default 10, min 1, max 30
+
+3. Core data types:
+   - Rqt, Rec, Inv, Ord: Arrays of integers for tracking manufacturing requirements, receiving, inventory, and orders
+   - ProductionScenario: Data structure with fields (Sel, MPN, Inv, InvTgt, SStok, LdTm, MOQ, PkQty, Rqt, Rec)
+   - OrderSchedule: Generated schedule with recommended orders
+   - DataSource: Named collection of production scenarios
+
+4. Algorithms (shared between frontend and backend):
+   - Base Algorithm abstract class with:
+     - prepareOrderSchedule: Creates OrderSchedule from ProductionScenario
+     - calculateOrderScheduleImpacts: Calculates inventory impact from orders
+     - calculateOrderSchedule: Combines the above methods
+   - Concrete implementations:
+     - AlgorithmFlat20: Orders exactly 20 units always
+     - AlgorithmNaiveReplenish: Reorders based on current consumption  
+     - AlgorithmSmartReplenish: Considers target inventory and safety stock
+     - AlgorithmAIDesigned: Optimizes across all weeks with priority rules
+     - AlgorithmLookAheadLdTm: Orders based on lead time forecast
+
+5. Backend functionality:
+   - API Gateway with CORS enabled endpoints
+   - Lambda handlers for:
+     - GetProductionScenarios: Return scenarios from data source
+     - GetOrders: Calculate orders using selected algorithm
+     - SimulateOrders: Combines the above operations
+   - CloudFront distribution for hosting React app with S3 origin
+
+6. Frontend UI tabs:
+   - Data/Config Tab: API configuration, algorithm list, global variables, scenario editing
+   - Batch Tab: Run algorithms on all data and view results
+   - Manual Tab: Select specific scenarios, calculate and manually edit orders
+   - ManualOutput Tab: Formatted JSON output of manual order schedule
+
+7. Data visualization:
+   - Tables with thin gray borders
+   - Color-coded cells for inventory alerts
+   - Vertically compact layout
+   - Row and column spanning for hierarchical data
+
+8. Additional features:
+   - Save API URL in cookie between sessions
+   - Persistent state between tab switches
+   - Success/failure toaster messages with timing info
+   - Manual order editing with real-time impact calculation
+
+9. Deployment:
+   - CDK stack with S3, CloudFront, API Gateway, Lambda
+   - Optional custom domain support
+   - Auto-building React app during CDK deployment
+
+Create this application with well-commented code, following best practices for shared code between frontend and backend.

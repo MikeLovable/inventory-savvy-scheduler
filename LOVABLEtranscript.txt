@@ -1,0 +1,290 @@
+
+User: Implement a two-tier web application (called AlgorthmicOrderScheduler) using React for a front end UI and AWS CDK v2 typescript for the back end.
+
+Lets start with the core shared types, classes, and global variables. 
+
+The front end and back end share the following global variables:
+1.	"PERIODS", integer, the maximum number of time periods (weeks), minval=1, maxval=20, default=12.
+2.	"SAMPLES", integer, the maximum number of samples (Scenarios), minval=1, maxval=30, default=10.
+
+The front end and back end share the following types:
+1.	"Rqt",  array of integers representing manufacturing requirements of MPN quantity for weeks Rqt[0] through Rqt[PERIODS], each with a minval=0 and maxval=400.
+2.	"Rec",  array of integers representing quantities of MPN scheduled to be received for weeks Rec[0] through Rec[PERIODS], each with a minval=0 and maxval=400. 
+3.	"Inv",  array of integers representing quantities of MPN units in inventory for weeks Inv[0] through Inv[PERIODS], each with a minval=0 and maxval=400.
+4.	"Ord",  array of integers representing quantities of MPN scheduled to be ordered for weeks Ord[0] through Ord[PERIODS], each with a minval=0 and maxval=400.
+5.	ProductionScenario - represents a schedule of production requirements for a Part. Each Part has:
+a.	"Sel", a boolean indicating whether the Scenario is selected or not.
+b.	"MPN", a 7 character string uniquely identifying the Part, of the form MPN_AAA, MPN_BBB, MPN_CCC, and so on. 
+c.	"Inv", array of expected Inventory quantities where Inv[0] represents starting inventory for the part and Inv[1] through Inv[PERIODS] is = "N/A".
+d.	"InvTgt", integer column representing target inventory levels, with minval = 10 and maxval=200.
+e.	"SStok", integer column representing inventory safety stock levels, with minval= 0 and maxval=5% of InvTgt in the same row.
+f.	"LdTm", integer representing weeks between order and receiving, with minval=1 and maxval=5.
+g.	"MOQ", integer representing minimum order quantity, with minval=2 and maxval=100.
+h.	"PkQty", integer representing quantity of items in a package, with minval=2 and maxval = 1/5 of MOQ in the same row.
+i.	"Rqt", array of requirements as defined above.
+j.	"Rec", array of receiving as defined above.
+6.	"OrderSchedule" represents a schedule of recommended orders to satisfy a ProductionScenario. OrderSchedule has the following columns:
+a.	MPN, string copied from the ProductionScenario input this OrderSchedule was calculated for.
+b.	"InvTgt", integer copied from the ProductionScenario input this OrderSchedule was calculated for.
+c.	"SStok", integer copied from the ProductionScenario input this OrderSchedule was calculated for.
+d.	"LdTm", integer copied from the ProductionScenario input this OrderSchedule was calculated for. 
+e.	"MOQ", integer copied from the ProductionScenario input this OrderSchedule was calculated for.
+f.	"PkQty", integer copied from the ProductionScenario input this OrderSchedule was calculated for.
+g.	Rqt, integer array copied from the ProductionScenario input this OrderSchedule was calculated for.
+h.	InRec, integer array copy of the Rec array from the related ProductionScenario input this OrderSchedule was calculated for.
+i.	Ord, integer array of recommended MPN order quantities that is to be calculated by the algorithm to satisfy the Rqt needs of the related ProductionScenario.
+j.	Rec, integer array of expected Receiving that will result from the recommended orders in Ord.
+k.	Inv, integer array of expected Inventory quantities that will result from the recommended orders in Ord.
+l.	"Notes", String containing notes about the recommended OrderSchedule.
+7.	"ProductionScenarioArray", an array of ProductionScenario items.
+8.	"OrderScheduleArray", an array of OrderSchedule items.
+9.	"DataSource", class describing a DataSource with the following members:
+a.	"Name", a 10 character string uniquely identifying a DataSource.
+b.	"Desc" , a 20 character string describing a DataSource.
+c.	ProductionScenarioArray.
+
+Inventory Basics:
+1.	MPNs are held in inventory.
+2.	Although it would be easiest to keep lots of extra inventory so there is always enough available for manufacturing, carrying extra units in inventory has a cost which should be minimized.
+3.	Manufacturers decide on a InvTgt that is usually set to be a little bit higher than the average MPN Rqt per week.
+4.	Manufacturers also decide on SStok, to guard against running out of inventory, which would prevent manufacturing.
+5.	Manufacturers place Orders for MPNs to replenish Inv consumed by manufacturing, but Ordered MPN quantities are not received until LdTm weeks after they are ordered.
+6.	Each order must be for at least MOQ units.
+7.	Each order must be for a quantity of units that is a whole integer multiple of PkQty.
+8.	Total inventory available for manufacturing in any week is calculated as Inv + Rec for that week.
+9.	Manufacturers try to keep approximately InvTgt+SStok in inventory after manufacturing Rqt units and receiving Rec units.
+
+Manufacturing Operations Basics:
+1.	Manufacturing consumes MPNs from inventory.
+2.	Receiving increases MPNs available in inventory
+
+Basic Business Operations for the manufacturer:
+1.	Manufacturer is committed to produce the quantities in the Rqt schedule.
+2.	Manufacturer can't produce more units than are available in Inv.
+
+The front end and back end share a typescript abstract class called "Algorithm" with the following members:
+1.	"Name", a 10 character string uniquely identifying the Algorithm.
+2.	"Desc" , a 20 character string describing the Algorithm.
+3.	"algorithm", an abstract private function that accepts an OrderSchedule and returns the modified OrderSchedule after calculating Ord values.
+4.	"prepareOrderSchedule", a concrete public function that accepts a ProductionScenario, and returns an OrderSchedule. prepareOrderSchedule is implemented as follows:
+a.	First copy the following properties from the input ProductionScenario to their corresponding properties in a new OrderSchedule that will be returned to the caller: MPN, InvTgt, SStok, LdTm, MOQ, PkQty, Rqt.
+b.	Next copy the Rqt property from the input ProductionScenario to the InRec property of the OrderSchedule that will be returned to the caller.
+c.	Lastly, return the OrderSchedule with the copied values to the caller.
+5.	"calculateOrderScheduleImpacts", a concrete public function that accepts an OrderSchedule, and returns the modified OrderSchedule after calculating the Rec and Inv that result from the Ord of OrderSchedule. calculateOrderScheduleImpacts is implemented as follows:
+a.	First calculate future Rec values as follows:
+i.	Iterate over the items in Ord, and add the Ord value to the Rec item that is LdTm weeks ahead.
+ii.	If the Rec that is LdTm weeks ahead falls outside of the bounds of Rec, then add the Ord value to the last position in Rec.
+b.	Next calculate future Inv values as follows:
+i.	iterate from 0 through PERIODS
+ii.	let tmp = Rqt-Rec for that iteration.
+iii.	set Inv for this iteration = Inv from the prior iteration minus tmp.
+c.	Next populate Notes indicating if any of the following conditions occur with the recommended Ord:
+i.	allows inventory to get to zero
+ii.	allows inventory to get to three times target inventory or more for 2 weeks or more.
+d.	Lastly, return the modified OrderSchedule with the newly calculated Rec and Inv values.
+6.	"calculateOrderSchedule", a concrete public function that accepts a ProductionScenario and returns an OrderSchedule implemented as follows:
+a.	First it calls prepareOrderSchedule to get an OrderSchedule to work with.
+b.	Next it calls algorithm.
+c.	Next it calls calculateOrderScheduleImpacts.
+d.	Lastly it returns OrderSchedule.
+7.	"calculateOrderScheduleArray", a concrete public function that accepts a ProductionScenarioArray and returns an OrderScheduleArray. calculateOrderScheduleArray calls calculateOrderSchedule for each ProductionScenario in the ProductionScenarioArray input and adds the returned OrderSchedule to the OrderScheduleArray to be returned by calculateOrderScheduleArray.
+
+The front end and back end share a typescript concrete class called "AlgorithmFlat20" that extends Algorithm with the following member values:
+1.	Name: "Flat20"; Desc: "Orders 20 units, regardless of Rqt or Inv"; 
+2.	AlgorithmFlat20 implements algorithm as follows:
+a.	Populate each Ord item on the OrderSchedule with the value 20.
+b.	Returns the modified OrderSchedule.
+
+The front end and back end share a typescript concrete class called "AlgorithmNaiveReplenish" that extends Algorithm with the following member values:
+1.	Name: "NaiveReplenish"; Desc: "Reorders this weeks consumption, regardless of Rqt or Inv"; 
+2.	AlgorithmNaiveReplenish implements algorithm as follows:
+a.	Populate each Ord item on the OrderSchedule with smallest integer that >= MOQ AND is a whole number multiple of PkQty AND is >= Rqt.
+b.	Return the modified OrderSchedule.
+
+The front end and back end share a typescript concrete class called "AlgorithmSmartReplenish" that extends Algorithm with the following member values:
+1.	Name: "SmartReplenish"; Desc: "Reorders this weeks consumption but also considers InvTgt and SStok"; 
+2.	AlgorithmSmartReplenish implements algorithm as follows:
+a.	For each Ord item on the OrderSchedule let tmp = the smallest integer that >= MOQ AND is a whole number multiple of PkQty AND is >= Rqt.
+b.	If tmp >= (InvTgt + SStok) then set Ord = tmp.
+c.	Else set Ord = (InvTgt + SStok).
+d.	Return the modified OrderSchedule.
+
+The front end and back end share a typescript concrete class called "AlgorithmAIDesigned" that extends Algorithm with the following member values:
+1.	Name: "AIDesigned"; Desc: "Replensihment algorithm designed by AI after teaching it inventory concepts in English"; 
+2.	Based on what I told you about Inventory and manufacturing, implement AlgorithmAIDesigned.algorithm to optimize across all known weeks according to the following priorities in priority order:
+a.	avoid letting Inv + Rec for the week fall below Rqt for the week, or you will not be able to manufacture.
+b.	avoid having inventory greater than 3x InvTgt for 2 or more weeks in a row.
+c.	Aim for all weeks to end with Inv close to InvTgt+SStok.
+
+The front end and back end share a typescript concrete class called "AlgorithmLookAheadLdTm" that extends Algorithm with the following member values:
+1.	Name: "AlgorithmLookAheadLdTm"; Desc: "Looks ahead LdTm weeks and orders, then skips LdTm weeks "; 
+2.	AlgorithmLookAheadLdTm implements algorithm as follows:
+a.	Tmp = look ahead by LdTm time periods and sum up the Rqt for the next LdTm weeks, and subtract the sum of InRec for the next LdTm weeks.
+b.	Then calculate Ord for the current time to be the nearest integer to Tmp that satisfies MOQ and PkQty. Use that as ORD for this time.
+c.	Then continue the iteration ahead by LdTm periods so we don't over order
+d.	Return the modified OrderSchedule.
+
+The front end and back end share the following DataSource instances:
+1.	Name: "StaticRandom"; Desc: "Scenario1"; ProductionScenarioArray: generate a random ProductionScenarioArray and hardcode it into the app code. It will be displayed in the UI and will be editable by the user.
+2.	Name: "Customer"; Desc: "Scenario2"; ProductionScenarioArray: generate a random ProductionScenarioArray and hardcode it into the app code. It will be displayed in the UI and will be editable by the user.
+3.	Name: "Scenario3"; Desc: "Scenario3"; ProductionScenarioArray: generate a random ProductionScenarioArray and hardcode it into the app code. It will be displayed in the UI and will be editable by the user. 
+4.	Name: "Random"; Desc: "Random"; ProductionScenarioArray: generate a random ProductionScenarioArray at runtime.
+
+The front end and back end share the following function:
+1.	GetProductionScenarios: Accepts an optional DataSourceName and returns a ProductionScenarioArray, implemented as follows:
+a.	If DataSourceName is missing or equals "Random", it returns a ProductionScenarioArray that is generated randomly at runtime.
+b.	Else if DataSourceName is a known DataSource, return the ProductionScenarioArray from the DataSource with matching name.
+c.	Else if DataSourceName is unknown, return an error.
+	
+Throughout the code, everywhere you are generating random LdTm, MOQ, PkQTY, InvTgt, or SStok, for an MPN, make sure the generated values comply with the following rules:
+•	LdTm is a whole integer between 1 and 5 inclusive.
+•	MOQ is a whole integer multiple of 10.
+•	PkQty is a whole integer multiple of 5 and is less than MOQ for the related MPN.
+•	InvTgt is a whole integer multiple of 10.
+•	SStok that is less than 20 percent of InvTgt for the related MPN.
+
+The front end and back end share the following global variables:
+1.	"SELECTEDDATASOURCE", object reference of the DataSource instance that was selected. Default = "Random".
+2.	"SELECTEDALGORITHM", object reference of the Algorithm subclass concrete instance that was selected. Default = "SmartReplenish".
+
+Now let's implement a back end composed of AWS API Gateway (called AlgorthmicOrderSchedulerAPI) backed by a AWS Lambda function (called AlgorthmicOrderSchedulerFunction):
+
+Implement the backend as AWS CDK v2 typescript infrastructure as code. Implement all of the backend code in a subfolder of the main project called "cdk". Do not put any of the backend files outside of the cdk folder. Use standard CDK folder names and structures.
+
+Implement the data types in a single typescript file called "types.ts".
+
+Implement each class in its own typescript file using standard naming convention based on the class name.
+
+All of the type files and the algorithm files should be shared by the UI and the backend and should be implemented in a folder that is in the main project folder and is a peer folder of cdk. Choose a name for this folder like "shared". Make sure the name you choose does not conflict with any standard folder names for AWS folder, CDK folders, or React folders.
+
+Do not add copies of the shared files to the backend CDK project. Instead configure the backend project and the react UI project to refer to the files in the shared folder.
+
+Implement AlgorthmicOrderSchedulerAPI as AWS API Gateway in CDK typescript infrastructure as code. AlgorthmicOrderSchedulerAPI should be invocable by any origin, and has these paths:
+•	Path 1: "GetProductionScenarios" is an HTTP GET that accepts one argument, "DataSource", a 20 character string whose default value is "Customer". GetProductionScenarios returns a JSON object containing a ProductionScenarioArray.
+•	Path 2: "GetOrders" is an HTTP POST that accepts a ProductionScenarioArray and an AlgorithmSelection name and returns a OrderScheduleArray.
+•	Path 3: "SimulateOrders" is an HTTP POST that accepts a DataSource and an AlgorithmSelection name and returns an OrderScheduleArray.
+
+Implement AlgorthmicOrderSchedulerFunction as AWS Lambda in CDK typescript infrastructure as code with three handler functions so the same lambda can be used for all paths of AlgorthmicOrderSchedulerAPI. AlgorthmicOrderSchedulerFunction should further be implemented as follows:
+•	The code of AlgorthmicOrderSchedulerFunction should be typescript. 
+•	Make sure all AlgorthmicOrderSchedulerFunction paths that return a response to the API include headers that allow all origins and optional credentials.
+
+Create a property type called "LovableStackProps" with the following properties:
+- "CustomDomain" optional property that can accept a custom domain.
+- "OriginBucket" optional S3 bucket and "OriginBasePath" required S3 key fragment to be the origin for a CloudFront distribution.
+
+Add a CloudFront distribution to the stack to host the React UI front end.
+
+If a valid CustomDomain is provided configure the CloudFront Distribution to be available at the CustomDomain and also at the AWS generated URL.
+
+If a valid OriginBucket and OriginBasePath are provided, configure the CloudFront Distribution to use them as the origin.
+
+If a valid OriginBucket is not provided, create an S3 bucket named "LovableInventoryApp" and configure the CloudFront Distribution to use it and the OriginBasePath as the origin for the app.
+
+Make sure AlgorthmicOrderSchedulerAPI is implemented so it works form all domains and also from the new CloudFront distribution.
+
+
+Now lets implement the react front end.
+
+The react front end UI has a Title (50Px tall): Text="Switchable Algorithmic Order Generator" in large bold.
+
+Under the title area, there are tabs in this order "Data/Config", "Batch", "Manual", "ManualOutput" with Manual as the default tab that is displayed when the app first opens.
+
+Implement the "Data/Config" tab as follows:
+•	a text box where I can paste the base URL of the API after I deploy it and a command button "Save" where I can commit changes to the API URL base path. That way I can build the CDK backend separately and you can still invoke all paths from the UI. Use a cookie to save this value between sessions.
+•	Show a simple table with one row each for the list of available Algorithms, showing name, description, and function name of each.
+•	Text box where user can set the value for global variable PERIODS and a command button with caption "Save", which updates the front end and back end to reflect the new number of periods.
+•	text box where user can set the value for global variable SAMPLES and a command button with caption "Save" , which updates the front end and back end to reflect the new number of samples.
+•	editable text area with label "Customer-configured Production Scenarios for demo" populated with a hierarchically-formatted JSON structure of the ProductionScenarioArray from SELECTEDDATASOURCE. When the user selects a DataSource in the drop down, its ProductionScenarioArray becomes the ProductionScenarioArray that is used throughout the rest of the app.
+
+Implement the "Batch" tab as a row-based UI with the following rows:
+1st row: DataSource selection:
+o	Has a DropDown to Select a valid DataSource name.
+o	Has 2 command buttons:
+	"GetLocalScenarios" – Updates SELECTEDDATASOURCE and Invokes the local implementation of GetProductionScenarios with the selected DataSource name.
+	"GetAPIScenarios" – Updates SELECTEDDATASOURCE and Invokes API path for GetProductionScenarios with the selected DataSource name.
+o	Shows a toaster message with success or failure, api or local, # of rows retrieved, time elapsed.
+
+2nd row: Algorithm selection:
+o	Has a DropDown to Select a valid Algorithm name.
+o	Has 2 command buttons:
+	"GetLocalOrderRecommendations" – Updates SELECTEDALGORITHM and Invokes the local implementation of GetOrders with the selected DataSource name.
+	"GetAPIOrderRecommendations" – Updates SELECTEDALGORITHM and Invokes API path for GetOrders with the selected DataSource name.
+o	Shows a toaster message with success or failure, api or local, # of rows retrieved, time elapsed.
+3rd Row: Displays a table called "OrderScheduleTable" as follows:
+1.	Use a thin light gray border around every cell in OrderScheduleTable.
+2.	Each Scenario/MPN has the following columns:
+a.	MPN.
+b.	MPNAttrs: text of the form: LdTm[val], MOQ[val], PkQty[val], InvTgt[val], SStok[val].
+i.	Put a single-spaced line break after LdTm[val], and after PkQty[val] so the MPNAttrs column takes up less horizontal space.
+c.	Notes.
+d.	"Dir" indicating data direction which is either "In" or "Out".
+e.	"KPI" column with 1 row heading for each attribute: In (Rqt, Rec, Inv), Out (Rqt, Ord, Rec, Inv).
+f.	Weeks ( one column for each week from 0 - PERIODS)
+g.	Each MPN, MPNAttr, and Notes row is vertically spanned and merged across its 2 "Dir" rows.
+i.	Row heading "In:" is vertically spanned and merged across these rows of OrderSchedule, with row headings:
+1.	Row heading: "Rqt": Columns for OrderSchedule Rqt[0] – Rqt[PERIODS]
+2.	Row heading: "Rec": Columns for OrderSchedule InRec[0] – InRec[PERIODS]
+3.	Row heading: "Inv": Columns for OrderSchedule Inv[0] – Inv[PERIODS]
+ii.	Row heading: "Out:" is vertically spanned and merged across these rows of OrderSchedule, with row headings:
+1.	Row heading: "Rqt": Columns for OrderSchedule Rqt[0] – Rqt[PERIODS]
+2.	Row heading: "Ord": Columns for OrderSchedule Ord[0] – Ord[PERIODS]
+3.	Row heading: "Rec": Columns for OrderSchedule Rec[0] – Rec[PERIODS]
+4.	Row heading: "Inv": Columns for OrderSchedule Inv[0] – Inv[PERIODS]
+h.	Include column headings at the top of the OrderScheduleTable.
+i.	Use this dynamic color coding for cells and or rows that exhibit any of the conditions described with Notes:
+i.	Make the cell a reddish/error color if inventory gets to zero.
+ii.	Make the cell an orangish/warning color if the inventory gets to 3 times TgtInv or higher for 2 weeks or more.
+j.	Show a color coding legend above the table. 
+k.	Dont use a lot of vertical padding in the rows. Keep the rows vertically dense.
+
+
+Implement the "Manual" tab the same as the Batch tab but with the following changes:
+•	The table displays ProductionScenarioArray rows instead of OrderScheduleArray.
+•	Add a leftmost column to display a user-editable checkbox for the "Sel" value of each ProductionScenario. And add a column heading "Sel", and add a user-editable checkbox in the column heading that selects or de-selects the check boxes of all rows.
+•	Remove the "Out" rows from the display because they are only present on OrderSchedule and not on ProductionScenario.
+•	When user clicks one of the algorithm command  buttons, the selected ProductionScenario rows are submitted to the selected algorithm to calculate the OrderSchedules.
+•	Add another table called "ManualOrderSchedule" that is just like original OrderScheduleTable to display the results, except that the values for Ord are user editable text boxes that are pre-populated with the calculated results. 
+
+Implement the "ManualOutput" tab as follows:
+•	text area with label "Human In the loop Order Schedule" populated with a hierarchically-formatted JSON structure of the OrderScheduleArray of the Manual OrderSchedule, including any changes made by user.
+
+
+Knowledge
+
+If you're ever about to fail because you want to edit a file that you don't have permission to edit, don't fail, instead for every file that you want to edit but don't have permissions to edit, create a new file named XXXLOVABLEMANUAL where XXX is replaced by the name of the file you want to edit but can't. Then put the whole contents that you want into  XXXLOVABLEMANUAL in the same directory as the original file. Then I will go and manually make the replacement because I have permission. Whenever you do this tell me in the chat which files and which paths I need to go and manually edit.
+
+Every time you make changes to code, also generate three files and save them and the topmost folder of the code: 
+LOVABLEtranscript.txt is the full transcript to this point for the current project.
+LOVABLEOneShot.txt is your best version of a complete prompt that would generate the entire current version of the project in a one-shot prompt.
+LOVABLEIdealized.txt is your best and shortest version of a prompt that would generate the entire current version of the project in a one-shot prompt
+
+For all code you write, include ample comments to allow a beginning coder to understand what you are doing and why you are doing it. Also include ample logging so it is easy for me to find and fix errors.
+
+You cause this error frequently: "error TS18026: '#!' can only be used at the start of a file.". Whenever you get this error, make sure to remove the empty line before the shebang. 
+
+Make the stack build and upload the react app to S3 at the key specified by OriginBasePath, so that a "cdk deploy" command will build and upload the UI.
+
+When the user changes and saves PERIODS and SAMPLES, the new values are supposed to change the global variables for PERIODS and SAMPLES and flow through the whole app.
+
+When the user changes tabs, don't blank out any of the data that has been entered or received. Keep the data so it stays there even as user changes tabs.
+
+I'm going to build an Algorithmic Order Scheduler application with a React frontend and AWS CDK backend. This evokes a sophisticated inventory management system with multiple algorithms for order scheduling - similar to enterprise resource planning systems like SAP or Oracle, but with a more modern, cloud-native architecture.
+
+For design inspiration, I'll draw from enterprise dashboard applications with clean, data-dense displays that show complex tabular data while maintaining good information hierarchy - think Bloomberg Terminal meets modern web design aesthetics.
+
+For this first version, I'll implement:
+- A shared code architecture between frontend and backend
+- A complete React frontend with multiple tabs and table displays
+- A CDK backend with API Gateway and Lambda
+- Four different ordering algorithms with different optimization strategies
+- Data visualization for order scheduling with appropriate color coding
+
+I'll use these design elements:
+- Clean, data-dense tables with thin borders for readability
+- A professional color scheme with muted colors and clear highlighting for alerts
+- Responsive layout that works well on desktop and tablet
+- Clear visual hierarchy with proper spacing between UI sections
+
+System: This response has been truncated due to its size exceeding the maximum allowed length. Would you like to continue with the rest of the response?
+
+Let me build the Algorithmic Order Scheduler application with all the specified requirements.

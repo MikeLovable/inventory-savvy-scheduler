@@ -1,0 +1,31 @@
+
+import React from 'react';
+import { TabsContent } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { OrderScheduleArray } from '../shared/types';
+
+interface ManualOutputTabProps {
+  manualOrderSchedules: OrderScheduleArray;
+}
+
+const ManualOutputTab: React.FC<ManualOutputTabProps> = ({ manualOrderSchedules }) => {
+  return (
+    <TabsContent value="manual-output" className="py-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Human In the loop Order Schedule</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea 
+            readOnly
+            value={JSON.stringify(manualOrderSchedules, null, 2)}
+            className="min-h-[500px] font-mono text-sm"
+          />
+        </CardContent>
+      </Card>
+    </TabsContent>
+  );
+};
+
+export default ManualOutputTab;
