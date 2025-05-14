@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { PERIODS } from '../shared/types';
 import { OrderScheduleArray } from '../shared/types';
 import { getAlgorithmByName } from '../shared/algorithms';
+import { toast } from "sonner";
 
 interface ManualOrderScheduleTableProps {
   orderSchedules: OrderScheduleArray;
@@ -35,6 +36,30 @@ const getWeeks = () => {
   return Array.from({ length: PERIODS + 1 }, (_, i) => i);
 };
 
+// Function to adjust order value according to MOQ and PkQty rules
+const adjustOrderValue = (value: number, MOQ: number, PkQty: number): { value: number, adjusted: boolean } => {
+  // Enforce minimum order quantity (MOQ)
+  let adjustedValue = value;
+  let wasAdjusted = false;
+  
+  if (value > 0 && value < MOQ) {
+    adjustedValue = MOQ;
+    wasAdjusted = true;
+  }
+  
+  // Enforce package quantity (PkQty) - order must be a multiple of package quantity
+  if (value > 0 && PkQty > 1) {
+    const remainder = adjustedValue % PkQty;
+    if (remainder !== 0) {
+      // Round up to next multiple of PkQty
+      adjustedValue = adjustedValue + (PkQty - remainder);
+      wasAdjusted = true;
+    }
+  }
+  
+  return { value: adjustedValue, adjusted: wasAdjusted };
+};
+
 export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> = ({ 
   orderSchedules,
   onUpdateOrderSchedule
@@ -45,27 +70,42 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
   // Handle changing an order value
   const handleOrderChange = (scheduleIndex: number, weekIndex: number, value: string) => {
     // Parse the input value
-    const numValue = parseInt(value, 10);
+    let numValue = parseInt(value, 10);
     
     // If it's not a number, return
-    if (isNaN(numValue)) {
-      return;
+    if (isNaN(numValue) || numValue < 0) {
+      numValue = 0;
+    }
+    
+    // Get the schedule
+    const schedule = orderSchedules[scheduleIndex];
+    
+    // Adjust value according to MOQ and PkQty rules
+    const { value: adjustedValue, adjusted } = adjustOrderValue(numValue, schedule.MOQ, schedule.PkQty);
+    
+    // Show toast if value was adjusted
+    if (adjusted && numValue > 0) {
+      if (numValue < schedule.MOQ) {
+        toast.info(`Order adjusted to minimum order quantity (MOQ): ${schedule.MOQ}`);
+      } else {
+        toast.info(`Order adjusted to be a multiple of package quantity (PkQty): ${schedule.PkQty}`);
+      }
     }
     
     // Create a copy of the schedule
     const updatedSchedule = { ...orderSchedules[scheduleIndex] };
     
-    // Update the Ord value
+    // Update the Ord value with the adjusted value
     updatedSchedule.Ord = [...updatedSchedule.Ord];
-    updatedSchedule.Ord[weekIndex] = numValue;
+    updatedSchedule.Ord[weekIndex] = adjustedValue;
     
-    // Reset Rec and Inv arrays since we need to recalculate them fully
+    // Reset Rec and Inv arrays for complete recalculation
     updatedSchedule.Rec = new Array(updatedSchedule.Rqt.length).fill(0);
-    updatedSchedule.Inv = [...updatedSchedule.Inv]; // Keep initial inventory
+    updatedSchedule.Inv = [updatedSchedule.Inv[0]]; // Keep only initial inventory
     
     // Recalculate impacts
     try {
-      // We'll use the Algorithm's calculateOrderScheduleImpacts method to fully recalculate impacts
+      // Use the Algorithm's calculateOrderScheduleImpacts method to fully recalculate impacts
       const algorithm = getAlgorithmByName('SmartReplenish');
       const resultSchedule = algorithm.calculateOrderScheduleImpacts(updatedSchedule);
       
@@ -82,18 +122,18 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
   
   return (
     <div className="overflow-auto">
-      <Table className="border-collapse [&_tr:nth-child(even)]:bg-gray-50">
+      <Table className="border-collapse [&_tr:hover]:bg-blue-50">
         <TableHeader>
           <TableRow>
-            <TableHead className="border border-gray-300">MPN</TableHead>
-            <TableHead className="border border-gray-300">MPNAttrs</TableHead>
-            <TableHead className="border border-gray-300">Notes</TableHead>
-            <TableHead className="border border-gray-300">Dir</TableHead>
-            <TableHead className="border border-gray-300">KPI</TableHead>
+            <TableHead className="border border-gray-300 bg-blue-100">MPN</TableHead>
+            <TableHead className="border border-gray-300 bg-blue-100">MPNAttrs</TableHead>
+            <TableHead className="border border-gray-300 bg-blue-100">Notes</TableHead>
+            <TableHead className="border border-gray-300 bg-blue-100">Dir</TableHead>
+            <TableHead className="border border-gray-300 bg-blue-100">KPI</TableHead>
             {weeks.map(week => (
               <TableHead 
                 key={week} 
-                className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-gray-100' : ''}`}
+                className={`border border-gray-300 text-center bg-blue-100 ${hoveredColumn === week ? 'bg-blue-200' : ''}`}
                 onMouseEnter={() => handleColumnHover(week)}
                 onMouseLeave={() => handleColumnHover(null)}
               >
@@ -106,7 +146,7 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
           {orderSchedules.map((schedule, scheduleIndex) => (
             <React.Fragment key={scheduleIndex}>
               {/* Input row group */}
-              <TableRow className="hover:bg-gray-100">
+              <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                 <TableCell rowSpan={6} className="border border-gray-300 align-middle">
                   {schedule.MPN}
                 </TableCell>
@@ -120,14 +160,14 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
                 <TableCell rowSpan={6} className="border border-gray-300 align-middle">
                   {schedule.Notes}
                 </TableCell>
-                <TableCell rowSpan={3} className="border border-gray-300 align-middle">
+                <TableCell rowSpan={3} className="border border-gray-300 align-middle bg-indigo-50">
                   In
                 </TableCell>
-                <TableCell className="border border-gray-300">Rqt</TableCell>
+                <TableCell className="border border-gray-300 bg-indigo-50">Rqt</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
-                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-gray-100' : ''}`}
+                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-blue-50' : ''}`}
                     onMouseEnter={() => handleColumnHover(week)}
                     onMouseLeave={() => handleColumnHover(null)}
                   >
@@ -135,12 +175,12 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
                   </TableCell>
                 ))}
               </TableRow>
-              <TableRow className="hover:bg-gray-100">
-                <TableCell className="border border-gray-300">Rec</TableCell>
+              <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <TableCell className="border border-gray-300 bg-indigo-50">Rec</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
-                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-gray-100' : ''}`}
+                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-blue-50' : ''}`}
                     onMouseEnter={() => handleColumnHover(week)}
                     onMouseLeave={() => handleColumnHover(null)}
                   >
@@ -148,12 +188,12 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
                   </TableCell>
                 ))}
               </TableRow>
-              <TableRow className="hover:bg-gray-100">
-                <TableCell className="border border-gray-300">Inv</TableCell>
+              <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <TableCell className="border border-gray-300 bg-indigo-50">Inv</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
-                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-gray-100' : ''}`}
+                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-blue-50' : ''}`}
                     onMouseEnter={() => handleColumnHover(week)}
                     onMouseLeave={() => handleColumnHover(null)}
                   >
@@ -163,15 +203,15 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
               </TableRow>
               
               {/* Output row group */}
-              <TableRow className="hover:bg-gray-100">
-                <TableCell rowSpan={4} className="border border-gray-300 align-middle">
+              <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <TableCell rowSpan={3} className="border border-gray-300 align-middle bg-teal-50">
                   Out
                 </TableCell>
-                <TableCell className="border border-gray-300">Rqt</TableCell>
+                <TableCell className="border border-gray-300 bg-teal-50">Rqt</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
-                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-gray-100' : ''}`}
+                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-blue-50' : ''}`}
                     onMouseEnter={() => handleColumnHover(week)}
                     onMouseLeave={() => handleColumnHover(null)}
                   >
@@ -179,19 +219,18 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
                   </TableCell>
                 ))}
               </TableRow>
-              <TableRow className="hover:bg-gray-100">
-                <TableCell className="border border-gray-300">Ord</TableCell>
+              <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <TableCell className="border border-gray-300 bg-teal-50">Ord</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
-                    className={`border border-gray-300 text-center p-0 ${hoveredColumn === week ? 'bg-gray-100' : ''}`}
+                    className={`border border-gray-300 text-center p-0 ${hoveredColumn === week ? 'bg-blue-50' : ''}`}
                     onMouseEnter={() => handleColumnHover(week)}
                     onMouseLeave={() => handleColumnHover(null)}
                   >
                     <Input 
                       type="number" 
-                      min="0" 
-                      max="400" 
+                      min="0"
                       value={schedule.Ord[week]} 
                       onChange={(e) => handleOrderChange(scheduleIndex, week, e.target.value)}
                       className="border-0 h-8 text-center"
@@ -199,12 +238,12 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
                   </TableCell>
                 ))}
               </TableRow>
-              <TableRow className="hover:bg-gray-100">
-                <TableCell className="border border-gray-300">Rec</TableCell>
+              <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <TableCell className="border border-gray-300 bg-teal-50">Rec</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
-                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-gray-100' : ''}`}
+                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-blue-50' : ''}`}
                     onMouseEnter={() => handleColumnHover(week)}
                     onMouseLeave={() => handleColumnHover(null)}
                   >
@@ -212,12 +251,12 @@ export const ManualOrderScheduleTable: React.FC<ManualOrderScheduleTableProps> =
                   </TableCell>
                 ))}
               </TableRow>
-              <TableRow className="hover:bg-gray-100">
-                <TableCell className="border border-gray-300">Inv</TableCell>
+              <TableRow className={scheduleIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <TableCell className="border border-gray-300 bg-teal-50">Inv</TableCell>
                 {weeks.map(week => (
                   <TableCell 
                     key={week} 
-                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-gray-100' : ''} ${getInventoryClass(schedule, week)}`}
+                    className={`border border-gray-300 text-center ${hoveredColumn === week ? 'bg-blue-50' : ''} ${getInventoryClass(schedule, week)}`}
                     onMouseEnter={() => handleColumnHover(week)}
                     onMouseLeave={() => handleColumnHover(null)}
                   >

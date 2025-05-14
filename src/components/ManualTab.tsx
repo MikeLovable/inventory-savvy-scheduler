@@ -10,7 +10,7 @@ import { GetProductionScenarios, getDataSourceByName } from '../shared/dataSourc
 import { getAlgorithmByName } from '../shared/algorithms';
 import { ProductionScenarioTable } from './ProductionScenarioTable';
 import { ManualOrderScheduleTable } from './ManualOrderScheduleTable';
-import { DataSource, OrderScheduleArray, ProductionScenarioArray, ProductionScenario } from '../shared/types';
+import { DataSource, OrderScheduleArray, ProductionScenarioArray } from '../shared/types';
 import { fetchProductionScenarios, fetchOrderRecommendations } from '../api/api';
 
 interface ManualTabProps {
@@ -179,14 +179,15 @@ const ManualTab: React.FC<ManualTabProps> = ({
   return (
     <TabsContent value="manual" className="py-4">
       <div className="space-y-6">
-        <Card>
-          <CardContent className="pt-6">
+        <Card className="border-blue-200 shadow-md">
+          <CardContent className="pt-6 bg-gradient-to-r from-blue-50 to-indigo-50">
             <div className="space-y-4">
               {/* DataSource selection */}
               <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-2 md:space-y-0">
                 <div className="flex-1">
+                  <label className="text-sm font-medium text-blue-700 mb-1 block">Data Source</label>
                   <Select value={selectedDataSource} onValueChange={setSelectedDataSource}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-blue-200 focus:ring-blue-400">
                       <SelectValue placeholder="Select a data source" />
                     </SelectTrigger>
                     <SelectContent>
@@ -201,14 +202,14 @@ const ManualTab: React.FC<ManualTabProps> = ({
                   <Button 
                     onClick={handleGetLocalScenarios} 
                     disabled={isLoading}
-                    className="flex-1"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
                   >
                     GetLocalScenarios
                   </Button>
                   <Button 
                     onClick={handleGetAPIScenarios} 
                     disabled={isLoading}
-                    className="flex-1"
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700"
                   >
                     GetAPIScenarios
                   </Button>
@@ -218,8 +219,9 @@ const ManualTab: React.FC<ManualTabProps> = ({
               {/* Algorithm selection */}
               <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-2 md:space-y-0">
                 <div className="flex-1">
+                  <label className="text-sm font-medium text-blue-700 mb-1 block">Algorithm</label>
                   <Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-blue-200 focus:ring-blue-400">
                       <SelectValue placeholder="Select an algorithm" />
                     </SelectTrigger>
                     <SelectContent>
@@ -235,14 +237,14 @@ const ManualTab: React.FC<ManualTabProps> = ({
                   <Button 
                     onClick={handleGetLocalOrderRecommendations} 
                     disabled={isLoading || productionScenarios.length === 0}
-                    className="flex-1"
+                    className="flex-1 bg-teal-600 hover:bg-teal-700"
                   >
                     GetLocalOrderRecommendations
                   </Button>
                   <Button 
                     onClick={handleGetAPIOrderRecommendations} 
                     disabled={isLoading || productionScenarios.length === 0}
-                    className="flex-1"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                   >
                     GetAPIOrderRecommendations
                   </Button>
@@ -259,9 +261,10 @@ const ManualTab: React.FC<ManualTabProps> = ({
               <Checkbox 
                 id="select-all" 
                 checked={allSelected} 
-                onCheckedChange={(checked) => toggleSelectAll(!!checked)} 
+                onCheckedChange={(checked) => toggleSelectAll(!!checked)}
+                className="border-blue-500 text-blue-600 focus:ring-blue-400" 
               />
-              <label htmlFor="select-all" className="ml-2 text-sm font-medium">
+              <label htmlFor="select-all" className="ml-2 text-sm font-medium text-blue-700">
                 Select All
               </label>
             </div>
@@ -275,15 +278,33 @@ const ManualTab: React.FC<ManualTabProps> = ({
         {/* ManualOrderScheduleTable */}
         {manualOrderSchedules.length > 0 && (
           <div className="mt-6 space-y-2">
-            <div className="flex items-center space-x-4 text-sm">
-              <span className="flex items-center">
-                <span className="inline-block w-3 h-3 bg-red-500 rounded-full mr-1"></span>
-                <span>Inventory reaches zero</span>
-              </span>
-              <span className="flex items-center">
-                <span className="inline-block w-3 h-3 bg-orange-500 rounded-full mr-1"></span>
-                <span>Inventory &gt; 3x target for 2+ weeks</span>
-              </span>
+            <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-200">
+              <h3 className="text-lg font-medium text-blue-700 mb-2">Order Schedule Legend</h3>
+              <div className="flex flex-wrap gap-4 text-sm">
+                <span className="flex items-center">
+                  <span className="inline-block w-3 h-3 bg-red-200 rounded-full mr-1"></span>
+                  <span>Inventory reaches zero</span>
+                </span>
+                <span className="flex items-center">
+                  <span className="inline-block w-3 h-3 bg-orange-200 rounded-full mr-1"></span>
+                  <span>Inventory &gt; 3x target for 2+ weeks</span>
+                </span>
+                <span className="flex items-center">
+                  <span className="inline-block w-3 h-3 bg-blue-50 rounded-full mr-1"></span>
+                  <span>Column hover highlight</span>
+                </span>
+                <span className="flex items-center">
+                  <span className="inline-block w-3 h-3 bg-indigo-50 rounded-full mr-1"></span>
+                  <span>Input section</span>
+                </span>
+                <span className="flex items-center">
+                  <span className="inline-block w-3 h-3 bg-teal-50 rounded-full mr-1"></span>
+                  <span>Output section</span>
+                </span>
+              </div>
+              <div className="mt-2 text-sm text-gray-600">
+                <p>Note: Order values will be adjusted to comply with MOQ and PkQty constraints.</p>
+              </div>
             </div>
             <ManualOrderScheduleTable 
               orderSchedules={manualOrderSchedules} 
